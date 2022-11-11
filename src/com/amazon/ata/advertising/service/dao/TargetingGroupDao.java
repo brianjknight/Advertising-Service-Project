@@ -9,6 +9,7 @@ import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBQueryExpression;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import javax.inject.Inject;
 
@@ -36,14 +37,17 @@ public class TargetingGroupDao implements ReadableDao<String, List<TargetingGrou
      * @param contentId The id of the content to get metadata for
      * @return the Advertisement metadata for the piece of content. If there is no metadata the Optional will be empty.
      */
+    // TODO above javadoc wants us to return an Optional
     @Override
     public List<TargetingGroup> get(String contentId) {
+//    public Optional<List<TargetingGroup>> get(String contentId) {
         TargetingGroup indexHashKey = new TargetingGroup(null, contentId, 0,  null);
         DynamoDBQueryExpression<TargetingGroup> queryExpression = new DynamoDBQueryExpression<TargetingGroup>()
                 .withIndexName(TargetingGroup.CONTENT_ID_INDEX)
                 .withConsistentRead(false)
                 .withHashKeyValues(indexHashKey);
         return mapper.query(TargetingGroup.class, queryExpression);
+//        return Optional.ofNullable(mapper.query(TargetingGroup.class, queryExpression));
     }
 
     /**

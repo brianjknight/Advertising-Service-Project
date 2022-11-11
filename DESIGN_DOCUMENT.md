@@ -135,7 +135,7 @@ clickThroughRate // the rate that customers who see the add click on it (between
 targetingPredicates // the targeting rules for this group 
 ```
 
-##CreateContent
+### CreateContent
 
 Creates a new piece of advertising content and a targeting group to go with it. The html/css content of the advertisement 
 and a marketplace to schedule the content in is required. If a list of targeting predicates is provided, the initial 
