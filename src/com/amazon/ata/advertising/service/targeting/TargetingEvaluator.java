@@ -4,14 +4,19 @@ import com.amazon.ata.advertising.service.model.RequestContext;
 import com.amazon.ata.advertising.service.targeting.predicate.TargetingPredicate;
 import com.amazon.ata.advertising.service.targeting.predicate.TargetingPredicateResult;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * Evaluates TargetingPredicates for a given RequestContext.
  */
 public class TargetingEvaluator {
     public static final boolean IMPLEMENTED_STREAMS = true;
-    public static final boolean IMPLEMENTED_CONCURRENCY = false;
+    public static final boolean IMPLEMENTED_CONCURRENCY = true;
     private final RequestContext requestContext;
 
     /**
@@ -31,6 +36,7 @@ public class TargetingEvaluator {
     public TargetingPredicateResult evaluate(TargetingGroup targetingGroup) {
         List<TargetingPredicate> targetingPredicates = targetingGroup.getTargetingPredicates();
 
+        //initial code using a for loop:
 //        boolean allTruePredicates = true;
 //        for (TargetingPredicate predicate : targetingPredicates) {
 //            TargetingPredicateResult predicateResult = predicate.evaluate(requestContext);
@@ -40,9 +46,31 @@ public class TargetingEvaluator {
 //            }
 //        }
 
-        boolean allTruePredicates = targetingPredicates.stream()
-                .map(targetingPredicate -> targetingPredicate.evaluate(requestContext))
-                .allMatch(targetingPredicateResult -> targetingPredicateResult.isTrue());
+        // MT1 Sprint 25 replacing for loop with Stream and Lambda functions:
+//        boolean allTruePredicates = targetingPredicates.stream()
+//                .map(targetingPredicate -> targetingPredicate.evaluate(requestContext))
+//                .allMatch(targetingPredicateResult -> targetingPredicateResult.isTrue());
+
+        //MT2 Sprint 26 use concurrent calls to evaluate each targetingPredicate:
+        // concurrently call targetingPredicate.evaluate(requestContext)
+        ExecutorService executorService = Executors.newCachedThreadPool();
+        List<Future<TargetingPredicateResult>> futureList = new ArrayList<>();
+
+        targetingPredicates.stream()
+                .forEach(targetingPredicate -> {
+                    targetingPredicate.setRequestContext(requestContext);
+                    futureList.add(executorService.submit(targetingPredicate));
+                });
+        executorService.shutdown();
+
+        boolean allTruePredicates = futureList.stream()
+                .allMatch(future -> {
+                    try {
+                        return future.get().isTrue();
+                    } catch (InterruptedException | ExecutionException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
 
         return allTruePredicates ? TargetingPredicateResult.TRUE :
                                    TargetingPredicateResult.FALSE;

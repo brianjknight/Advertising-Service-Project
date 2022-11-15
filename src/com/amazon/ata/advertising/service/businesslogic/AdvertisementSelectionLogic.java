@@ -70,33 +70,14 @@ public class AdvertisementSelectionLogic {
             RequestContext requestContext = new RequestContext(customerId, marketplaceId);
             TargetingEvaluator evaluator = new TargetingEvaluator(requestContext);
 
-            // TODO convert loop below to a stream (and an optional?) to return the filtered content list
-//            List<AdvertisementContent> filteredContent = new ArrayList<>();
-//            //we want to filter List<AdvertisementContent> contents for only eligible ads for the customerId
-//            for (AdvertisementContent content : contents) {
-//                // each AdvertisementContent has its contentId
-//                // contentId is used to retrieve List<TargetingGroup> from TargetingGroupDao
-//                List<TargetingGroup> tempTargetingGroupList = targetingGroupDao.get(content.getContentId());
-//                for (TargetingGroup targetingGroup : tempTargetingGroupList) {
-//                    // the evaluator was instantiated above using the input customerId & marketplaceID to evaluate against
-//                    // if any one of the target groups evaluates to isTrue, the content is eligible
-//                    if (evaluator.evaluate(targetingGroup).isTrue()) {
-//                        filteredContent.add(content);
-//                        continue;
-//                    }
-//                }
-//            }
-
             List<AdvertisementContent> filteredContentFromStream = contents.stream()
-                    .filter( advertisementContent -> {
-                        return targetingGroupDao.get(advertisementContent.getContentId()).stream()
+                    .filter( advertisementContent ->
+                        targetingGroupDao.get(advertisementContent.getContentId())
+                                .stream()
                                 .map(evaluator::evaluate)
-                                .anyMatch(TargetingPredicateResult::isTrue);
-                    })
+                                .anyMatch(TargetingPredicateResult::isTrue)
+                    )
                     .collect(Collectors.toList());
-
-//            System.out.println("filteredContent(using loops) list result : \n" + filteredContent);
-//            System.out.println("filteredContentFromStream list result : \n" + filteredContentFromStream);
 
             if (CollectionUtils.isNotEmpty(filteredContentFromStream)) {
                 AdvertisementContent randomAdvertisementContent = filteredContentFromStream.get(random.nextInt(filteredContentFromStream.size()));
