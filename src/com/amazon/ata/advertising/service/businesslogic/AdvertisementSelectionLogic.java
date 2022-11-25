@@ -70,7 +70,16 @@ public class AdvertisementSelectionLogic {
             RequestContext requestContext = new RequestContext(customerId, marketplaceId);
             TargetingEvaluator evaluator = new TargetingEvaluator(requestContext);
 
-            List<AdvertisementContent> filteredContentFromStream = contents.stream()
+//            TreeMap<Double, AdvertisementContent> filteredContentMap = new TreeMap<>();
+//            contents.stream()
+//                    .map(advertisementContent -> targetingGroupDao.get(advertisementContent.getContentId()))
+//                    .forEach(targetingGroupsList -> {
+//                        targetingGroupsList.stream()
+//                                .map(targetingGroup -> targetingGroup.getClickThroughRate())
+//                                .
+//                    })
+
+            List<AdvertisementContent> filteredContent = contents.stream()
                     .filter( advertisementContent ->
                         targetingGroupDao.get(advertisementContent.getContentId())
                                 .stream()
@@ -79,9 +88,28 @@ public class AdvertisementSelectionLogic {
                     )
                     .collect(Collectors.toList());
 
-            if (CollectionUtils.isNotEmpty(filteredContentFromStream)) {
-                AdvertisementContent randomAdvertisementContent = filteredContentFromStream.get(random.nextInt(filteredContentFromStream.size()));
-                generatedAdvertisement = new GeneratedAdvertisement(randomAdvertisementContent);
+            // TODO set generatedAdvertisement so it is the ad with the highest click through rate instead of a random ad.
+            //  MT3 says to use a TreeMap
+
+            TreeMap<Double, AdvertisementContent> map = new TreeMap<>();
+
+            if (CollectionUtils.isNotEmpty(filteredContent)) {
+                //code previously returning random ad content:
+//                AdvertisementContent randomAdvertisementContent = filteredContent.get(random.nextInt(filteredContent.size()));
+//                generatedAdvertisement = new GeneratedAdvertisement(randomAdvertisementContent);
+
+                for (AdvertisementContent advertisementContent : filteredContent) {
+                    List<TargetingGroup> targetingGroupList = targetingGroupDao.get(advertisementContent.getContentId());
+                    for (TargetingGroup targetingGroup : targetingGroupList) {
+                        TargetingPredicateResult result = evaluator.evaluate(targetingGroup);
+                        if (result.isTrue()) {
+                            map.put(targetingGroup.getClickThroughRate(), advertisementContent);
+                        }
+                    }
+                }
+
+                AdvertisementContent highestClickThroughAd = map.get(map.lastKey());
+                generatedAdvertisement = new GeneratedAdvertisement(highestClickThroughAd);
             }
 
         }
