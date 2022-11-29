@@ -16,6 +16,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.inject.Inject;
 
 /**
@@ -66,50 +67,24 @@ public class AdvertisementSelectionLogic {
         } else {
             final List<AdvertisementContent> contents = contentDao.get(marketplaceId);
 
-            // TODO update class for dependency injection
             RequestContext requestContext = new RequestContext(customerId, marketplaceId);
             TargetingEvaluator evaluator = new TargetingEvaluator(requestContext);
 
-//            TreeMap<Double, AdvertisementContent> filteredContentMap = new TreeMap<>();
-//            contents.stream()
-//                    .map(advertisementContent -> targetingGroupDao.get(advertisementContent.getContentId()))
-//                    .forEach(targetingGroupsList -> {
-//                        targetingGroupsList.stream()
-//                                .map(targetingGroup -> targetingGroup.getClickThroughRate())
-//                                .
-//                    })
+            TreeMap<Double, AdvertisementContent> filteredContentMap = new TreeMap<>();
+            contents.stream()
+                    .forEach(advertisementContent -> {
+                        targetingGroupDao.get(advertisementContent.getContentId()).stream()
+                                .forEach(targetingGroup -> {
+                                    TargetingPredicateResult result = evaluator.evaluate(targetingGroup);
+                                    if (result.isTrue()) {
+                                        filteredContentMap.put(targetingGroup.getClickThroughRate(), advertisementContent);
+                                    }
+                                });
+                    });
 
-            List<AdvertisementContent> filteredContent = contents.stream()
-                    .filter( advertisementContent ->
-                        targetingGroupDao.get(advertisementContent.getContentId())
-                                .stream()
-                                .map(evaluator::evaluate)
-                                .anyMatch(TargetingPredicateResult::isTrue)
-                    )
-                    .collect(Collectors.toList());
-
-            // TODO set generatedAdvertisement so it is the ad with the highest click through rate instead of a random ad.
-            //  MT3 says to use a TreeMap
-
-            TreeMap<Double, AdvertisementContent> map = new TreeMap<>();
-
-            if (CollectionUtils.isNotEmpty(filteredContent)) {
-                //code previously returning random ad content:
-//                AdvertisementContent randomAdvertisementContent = filteredContent.get(random.nextInt(filteredContent.size()));
-//                generatedAdvertisement = new GeneratedAdvertisement(randomAdvertisementContent);
-
-                for (AdvertisementContent advertisementContent : filteredContent) {
-                    List<TargetingGroup> targetingGroupList = targetingGroupDao.get(advertisementContent.getContentId());
-                    for (TargetingGroup targetingGroup : targetingGroupList) {
-                        TargetingPredicateResult result = evaluator.evaluate(targetingGroup);
-                        if (result.isTrue()) {
-                            map.put(targetingGroup.getClickThroughRate(), advertisementContent);
-                        }
-                    }
-                }
-
-                AdvertisementContent highestClickThroughAd = map.get(map.lastKey());
-                generatedAdvertisement = new GeneratedAdvertisement(highestClickThroughAd);
+            if (filteredContentMap.size() > 0) {
+                AdvertisementContent highestClicks = filteredContentMap.get(filteredContentMap.lastKey());
+                generatedAdvertisement = new GeneratedAdvertisement(highestClicks);
             }
 
         }
